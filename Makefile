@@ -15,9 +15,6 @@ UPLOAD_SPEED = 115200
 # Define the ESP32 board model (e.g., esp32, esp32dev, esp32cam, etc.)
 BOARD = esp32cam
 
-# Location of the SPIFFS filesystem directory
-SPIFFS_DIR = data
-
 # Location of PlatformIO build directory
 BUILD_DIR = .pio/build/$(BOARD)
 
