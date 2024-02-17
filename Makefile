@@ -7,7 +7,7 @@ PROJECT_NAME = Automatic chicken feeder
 BUILD_ENV = platformio
 
 # Serial port for uploading (you may need to adjust this)
-UPLOAD_PORT = /dev/ttyUSB0
+UPLOAD_PORT = /dev/ttyACM0
 
 # Serial baud rate (you may need to adjust this)
 UPLOAD_SPEED = 115200
@@ -67,8 +67,10 @@ else
 endif
 
 reupload: uploadfs monitor
+ru: reupload
 
 reload: flash monitor
+rl: reload
 
 start: uploadfs flash monitor
 
