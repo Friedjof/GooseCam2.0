@@ -4,5 +4,6 @@
 - oder ESP32 cam
 
 ## Sources
-- https://dronebotworkshop.com/xiao-esp32s3-sense/
+- https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/
+- https://wiki.seeedstudio.com/xiao_esp32s3_camera_usage/
 - https://github.com/espressif/arduino-esp32
