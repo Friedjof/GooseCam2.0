@@ -2,13 +2,27 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <FS.h>
+#include <SD.h>
+#include <SPI.h>
+#include <I2S.h>
 
 #include "esp_camera.h"
 #include "camera_pins.h"
 
 #include "ConfigManager.h"
 
+// Audio record time setting (in seconds, max value 240)
+#define RECORD_TIME 10
+ 
+// Audio settings
+#define SAMPLE_RATE 16000U
+#define SAMPLE_BITS 16
+#define WAV_HEADER_SIZE 44
+#define VOLUME_GAIN 3
+
 void setup_camera();
+void take_picture();
 
 
 ConfigManager configManager;
@@ -22,6 +36,47 @@ void setup() {
 
   while (!Serial) {
     delay(10);
+  }
+
+  // Initialize I2S
+  I2S.setAllPins(-1, 42, 41, -1, -1);
+  if (!I2S.begin(PDM_MONO_MODE, SAMPLE_RATE, SAMPLE_BITS)) {
+    Serial.println("Failed to initialize I2S!");
+    while (1) {
+      delay(10);
+      Serial.println("Failed to initialize I2S!");
+    }
+  }
+  Serial.println("I2S initialized");
+
+  // Initialize the MicroSD card
+  if (!SD.begin(21)) {
+    Serial.println("Failed to mount MicroSD Card!");
+    while (1) {
+      delay(10);
+      Serial.println("Failed to mount MicroSD Card!");
+    }
+  }
+  Serial.println("MicroSD Card mounted");
+
+    // Determine what type of MicroSD card is mounted
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE) {
+    Serial.println("No MicroSD card inserted!");
+    return;
+  }
+
+  // Print card type
+  Serial.print("MicroSD Card Type: ");
+  if (cardType == CARD_MMC) {
+    Serial.println("MMC");
+  } else if (cardType == CARD_SD) {
+    Serial.println("SDSC");
+  } else if (cardType == CARD_SDHC) {
+    Serial.println("SDHC");
+  } else {
+    Serial.println("UNKNOWN");
   }
 
   configManager.load_config();
@@ -45,16 +100,9 @@ void setup() {
   // routes
   server.on("/picture", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Taking picture...");
+    take_picture();
 
-    camera_fb_t *fb = NULL;
-    fb = esp_camera_fb_get();
-    if (!fb) {
-      request->send(500, "text/plain", "Camera capture failed");
-      return;
-    }
-
-    request->send_P(200, "image/jpeg", fb->buf, fb->len);
-    esp_camera_fb_return(fb);
+    request->send(SD, "/picture.jpg", "image/jpeg");
   });
 
   server.begin();
@@ -84,11 +132,8 @@ void setup_camera() {
   config.xclk_freq_hz = 20000000;
   config.frame_size = FRAMESIZE_UXGA;
   config.pixel_format = PIXFORMAT_JPEG;
-  config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.jpeg_quality = 12;
-  config.fb_count = 1;
-  config.jpeg_quality = 10;
   config.fb_count = 2;
   config.grab_mode = CAMERA_GRAB_LATEST;
 
@@ -97,4 +142,24 @@ void setup_camera() {
   if (err) {
     Serial.println("Camera init failed with error: " + String(err));
   }
+}
+
+void take_picture() {
+  camera_fb_t *fb = NULL;
+  fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
+
+  File file = SD.open("/picture.jpg", FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to open file in writing mode");
+    return;
+  }
+
+  file.write(fb->buf, fb->len);
+  file.close();
+  esp_camera_fb_return(fb);
+  Serial.println("Picture saved");
 }
